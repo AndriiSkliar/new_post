@@ -19,7 +19,7 @@ export const ProcessingFile = ({ selectedFile }) => {
 
       reader.onload = (e) => {
         const data = e.target.result;
-        const workbook = read(data, { type: 'buffer' });
+        const workbook = read(data, { type: 'array' });
         const worksheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[worksheetName];
         const allSheets = utils.sheet_to_json(worksheet).slice(6);
@@ -29,8 +29,6 @@ export const ProcessingFile = ({ selectedFile }) => {
       reader.readAsArrayBuffer(file);
     });
   };
-
-  console.log(fileData);
 
   return (
     <>
