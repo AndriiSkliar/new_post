@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+	<title>Просмотр данных из Excel таблицы</title>
+	<meta charset="utf8"/>
+	<style>
+	</style>
+	<script type="module">
+		import { html, Component, render, useState, useEffect } from './htm-preact.min.js';
+		import './shim.min.js';
+		import './xlsx.min.js';
+
+		function sheet2arr(sheet) {
+			const result = [];
+			let row;
+			let rowNum;
+			let colNum;
+			const range = XLSX.utils.decode_range(sheet['!ref']);
+			for(rowNum = range.s.r; rowNum <= range.e.r; rowNum++) {
+				row = [];
+				for(colNum = range.s.c; colNum <= range.e.c; colNum++){
+					const nextCell = sheet[
+						XLSX.utils.encode_cell({ r: rowNum, c: colNum })
+					];
+					if(typeof nextCell === 'undefined') {
+						row.push(void 0);
+					} else {
+						row.push(nextCell.w);
+					}
+				}
+				result.push(row);
+			}
+			return result;
+		}
+
+		function App() {
+			const [sheets, setSheets] = useState(null);
+			const [currentSheet, setCurrentSheet] = useState(null);
+
+			useEffect(() => {
+				const data = localStorage.getItem('data');
+				if(data) {
+					const allSheets = JSON.parse(data);
+					setSheets(allSheets);
+					setCurrentSheet(allSheets[0]);
+				} else {
+					loadFile();
+				}
+			}, []);
+
+			function isNumber(n) {
+				return !isNaN(parseFloat(n)) && isFinite(n);
+			}
+
+			function loadFile() {
+				const req = new XMLHttpRequest();
+				req.open('GET', './price.xlsx', true);
+				req.responseType = 'arraybuffer';
+				req.onload = function(e) {
+					const workBook = XLSX.read(req.response, { type:'array' });
+					const allSheets = Object.keys(workBook.Sheets).map((sheet) => {
+						return {
+							sheet: sheet,
+							rows: sheet2arr(workBook.Sheets[sheet])
+								.filter(row => row[1] && isNumber(row[1]))
+								.map(row => {
+									row[1] = +row[1];
+									return row;
+								}),
+						};
+					});
+					setSheets(allSheets);
+					setCurrentSheet(allSheets[0]);
+					localStorage.setItem('data', JSON.stringify(allSheets));
+				}
+				req.send();
+			}
+
+			if(!currentSheet) {
+				return 'Загрузка...';
+			} else {
+				return html`
+					<div>
+						<ul>
+							${sheets.map(sheet => html`<li><button onClick=${() => setCurrentSheet(sheet)}>${sheet.sheet}</button></li>`)}
+							<li><button onClick=${loadFile}>Обновить</button></li>
+						</ul>
+						<ul>
+							${currentSheet.rows.map(row => html`<li>
+								${row[0]} -	${row[1]}
+							</li>`)}
+						</ul>
+					</div>
+				`;
+			}
+		}
+
+		render(html`<${App}/>`, document.body);
+	</script>
+</html>
